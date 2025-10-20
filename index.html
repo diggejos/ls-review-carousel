@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Community Viz API (dscc) -->
+  <script src="https://www.gstatic.com/datastudio/api/visualization/1.0/lookerstudio.min.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #111111;
+      --muted: #666666;
+      --accent: #ffb300; /* star color */
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap {
+      display: grid;
+      height: 100%;
+      width: 100%;
+      place-items: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .card {
+      max-width: 900px;
+      width: 100%;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,.06);
+      border: 1px solid rgba(0,0,0,.05);
+      padding: 24px 28px;
+      transition: opacity .35s ease, transform .35s ease;
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    .card.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .stars {
+      font-size: 20px;
+      letter-spacing: 2px;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .text {
+      font-size: 18px;
+      line-height: 1.5;
+      margin: 8px 0 12px;
+      white-space: pre-wrap;
+    }
+    .meta {
+      font-size: 14px;
+      color: var(--muted);
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .center { text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="card" class="card">
+      <div id="stars" class="stars">★★★★★</div>
+      <div id="text" class="text">Loading…</div>
+      <div id="meta" class="meta"></div>
+    </div>
+  </div>
+
+  <script>
+    // Access dscc API (legacy name kept for compatibility)
+    const dscc = window.dscc || window['dscc'];
+
+    let state = {
+      reviews: [],
+      idx: 0,
+      timer: null,
+      intervalMs: 5000,
+      alignCenter: true,
+      theme: {
+        backgroundColor: '#ffffff',
+        primaryTextColor: '#111111',
+        secondaryTextColor: '#666666',
+        accentColor: '#ffb300',
+      }
+    };
+
+    function setThemeVars() {
+      document.documentElement.style.setProperty('--bg', state.theme.backgroundColor);
+      document.documentElement.style.setProperty('--text', state.theme.primaryTextColor);
+      document.documentElement.style.setProperty('--muted', state.theme.secondaryTextColor);
+      document.documentElement.style.setProperty('--accent', state.theme.accentColor);
+    }
+
+    function toStars(n) {
+      const value = Math.round(Number(n) || 0);
+      // clamp 0..5
+      const v = Math.max(0, Math.min(5, value));
+      return '★★★★★'.slice(0, v) + '☆☆☆☆☆'.slice(0, 5 - v);
+    }
+
+    function render() {
+      if (!state.reviews.length) return;
+
+      const { text, author, rating, date } = state.reviews[state.idx];
+
+      const card = document.getElementById('card');
+      const stars = document.getElementById('stars');
+      const t = document.getElementById('text');
+      const meta = document.getElementById('meta');
+
+      // animate out
+      card.classList.remove('show');
+
+      // small timeout to allow CSS transition
+      setTimeout(() => {
+        stars.textContent = toStars(rating);
+        t.textContent = text || '';
+        meta.textContent = [author, date].filter(Boolean).join(' · ');
+
+        if (state.alignCenter) {
+          card.classList.add('center');
+        } else {
+          card.classList.remove('center');
+        }
+
+        // animate in
+        requestAnimationFrame(() => card.classList.add('show'));
+      }, 120);
+
+      // next index
+      state.idx = (state.idx + 1) % state.reviews.length;
+    }
+
+    function startLoop() {
+      if (state.timer) clearInterval(state.timer);
+      if (!state.reviews.length) return;
+      state.timer = setInterval(render, state.intervalMs);
+      // initial immediate render
+      render();
+    }
+
+    function readStyle(style) {
+      // Theme colors (if provided by report theme)
+      try {
+        const theme = style && style.theme && style.theme.elements;
+        if (theme) {
+          state.theme.backgroundColor = theme.backgroundColor?.value || state.theme.backgroundColor;
+          state.theme.primaryTextColor = theme.primaryTextColor?.value || state.theme.primaryTextColor;
+          state.theme.secondaryTextColor = theme.secondaryTextColor?.value || state.theme.secondaryTextColor;
+          state.theme.accentColor = theme.accentColor?.value || state.theme.accentColor;
+          setThemeVars();
+        }
+      } catch (e) {}
+
+      // Custom controls from manifest
+      const cfg = style && style.config || {};
+      if (cfg.interval_ms && cfg.interval_ms.value) state.intervalMs = Number(cfg.interval_ms.value);
+      if (cfg.max_rows && cfg.max_rows.value) state.maxRows = Number(cfg.max_rows.value);
+      if (cfg.align_center && 'value' in cfg.align_center) state.alignCenter = !!cfg.align_center.value;
+    }
+
+    function draw(data) {
+      // read style first
+      readStyle(data.style);
+
+      const rows = (data.tables && data.tables.DEFAULT && data.tables.DEFAULT.rows) || [];
+      const maxRows = state.maxRows || 50;
+
+      // Map rows → our model (respect field order: review_text, author, rating, date)
+      const mapped = rows.slice(0, maxRows).map(r => {
+        const c = r.c || r; // compatibility
+        // When using dscc.tableTransform, r.c[i].v holds values.
+        const review = c[0]?.v ?? '';
+        const author = c[1]?.v ?? '';
+        const rating = c[2]?.v ?? 0;
+        const date = c[3]?.v ?? '';
+        return { text: String(review), author: String(author), rating: Number(rating), date: String(date) };
+      }).filter(d => d.text);
+
+      state.reviews = mapped;
+      state.idx = 0;
+
+      setThemeVars();
+      startLoop();
+    }
+
+    // Subscribe to data (tableTransform gives rows with r.c[i].v)
+    dscc.subscribeToData(draw, { transform: dscc.tableTransform });
+  </script>
+</body>
+</html>

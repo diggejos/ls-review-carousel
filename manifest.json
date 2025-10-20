@@ -1,0 +1,59 @@
+{
+  "name": "Review Carousel",
+  "organization": "Your Name or Org",
+  "description": "Auto-rotating testimonial/review carousel with stars.",
+  "logoUrl": "https://raw.githubusercontent.com/google/material-design-icons/master/png/social/star/materialicons/24dp/2x/round_star_black_24dp.png",
+  "supportUrl": "https://github.com/",
+  "privacyPolicyUrl": "https://github.com/",
+  "termsOfServiceUrl": "https://github.com/",
+  "resources": [
+    {
+      "type": "visualization",
+      "name": "Review Carousel",
+      "id": "review_carousel",
+      "path": "index.html"
+    }
+  ],
+  "data": {
+    "tables": [
+      {
+        "id": "DEFAULT",
+        "label": "Default",
+        "componentType": "TABLE",
+        "fields": [
+          { "id": "review_text", "label": "Review Text", "type": "TEXT", "concept": "DIMENSION" },
+          { "id": "author", "label": "Author", "type": "TEXT", "concept": "DIMENSION" },
+          { "id": "rating", "label": "Rating (1-5)", "type": "NUMBER", "concept": "METRIC" },
+          { "id": "date", "label": "Date", "type": "TEXT", "concept": "DIMENSION" }
+        ]
+      }
+    ]
+  },
+  "style": {
+    "theme": {
+      "elements": {
+        "backgroundColor": { "value": "#ffffff" },
+        "primaryTextColor": { "value": "#111111" },
+        "secondaryTextColor": { "value": "#666666" },
+        "accentColor": { "value": "#ffb300" }
+      }
+    },
+    "config": {
+      "interval_ms": {
+        "label": "Rotation interval (ms)",
+        "defaultValue": 5000,
+        "type": "NUMBER"
+      },
+      "max_rows": {
+        "label": "Max reviews to use",
+        "defaultValue": 50,
+        "type": "NUMBER"
+      },
+      "align_center": {
+        "label": "Center content",
+        "type": "CHECKBOX",
+        "defaultValue": true
+      }
+    }
+  }
+}
